@@ -1,6 +1,7 @@
 use http::StatusCode;
 use octocrab::models::CheckRunId;
 use octocrab::models::checks::CheckRun;
+use octocrab::models::repos::CommitAuthor;
 use octocrab::params::checks::{CheckRunConclusion, CheckRunStatus};
 use octocrab::params::repos::Reference;
 use thiserror::Error;
@@ -284,4 +285,25 @@ pub async fn attempt_merge(
         }
         Err(error) => Err(error.into()),
     }
+}
+
+pub async fn create_commit(
+    repo: &GithubRepositoryClient,
+    message: &str,
+    tree_sha: &str,
+    parents: &[CommitSha],
+    author: &CommitAuthor,
+) -> Result<CommitSha, octocrab::Error> {
+    tracing::debug!("Creating commit with tree SHA {tree_sha}");
+
+    let commit = repo
+        .client()
+        .repos(repo.repository().owner(), repo.repository().name())
+        .create_git_commit_object(message, tree_sha)
+        .parents(parents.iter().map(|s| s.0.clone()).collect())
+        .author(author.to_owned())
+        .send()
+        .await?;
+
+    Ok(CommitSha::from(commit.sha))
 }

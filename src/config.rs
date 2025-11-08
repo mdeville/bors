@@ -36,6 +36,10 @@ pub struct RepositoryConfig {
     /// Defaults to false.
     #[serde(default)]
     pub merge_queue_enabled: bool,
+    /// Whether to squash commits when merging PRs.
+    /// Defaults to false.
+    #[serde(default)]
+    pub squash_commits: bool,
 }
 
 fn default_timeout() -> Duration {

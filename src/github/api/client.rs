@@ -1,6 +1,7 @@
 use anyhow::Context;
 use octocrab::Octocrab;
 use octocrab::models::checks::CheckRun;
+use octocrab::models::repos::CommitAuthor;
 use octocrab::models::{App, CheckRunId, CheckSuiteId, RunId};
 use octocrab::params::checks::{CheckRunConclusion, CheckRunStatus};
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use crate::bors::{Comment, WorkflowRun};
 use crate::config::{CONFIG_FILE_PATH, RepositoryConfig};
 use crate::database::WorkflowStatus;
 use crate::github::api::operations::{
-    BranchUpdateError, ForcePush, MergeError, create_check_run, merge_branches,
+    BranchUpdateError, ForcePush, MergeError, create_check_run, create_commit, merge_branches,
     set_branch_to_commit, update_check_run,
 };
 use crate::github::{CommitSha, GithubRepoName, PullRequest, PullRequestNumber};
@@ -425,6 +426,22 @@ impl GithubRepositoryClient {
         )
         .await?;
         Ok(prs)
+    }
+
+    pub async fn create_commit(
+        &self,
+        message: &str,
+        tree_sha: &str,
+        parents: &[CommitSha],
+        author: &CommitAuthor,
+    ) -> anyhow::Result<CommitSha> {
+        let commit_sha = perform_retryable("create_commit", RetryMethod::default(), || async {
+            create_commit(self, message, tree_sha, parents, author)
+                .await
+                .with_context(|| format!("Could not create commit to {}", self.repository()))
+        })
+        .await?;
+        Ok(commit_sha)
     }
 
     async fn get_request<T: DeserializeOwned + Debug>(&self, path: &str) -> anyhow::Result<T> {
